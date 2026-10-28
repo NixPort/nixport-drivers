@@ -1,0 +1,66 @@
+name: build
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [main, gen8]
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: License gate
+        run: python3 scripts/check-license.py
+
+      - name: Patch matrix (dry replay on pinned baselines)
+        run: |
+          git config --global advice.detachedHead false
+          mkdir -p src
+          clone() {
+            local dir=$1 repo=$2 commit=$3
+            git init -q "src/$dir"
+            git -C "src/$dir" remote add origin "$repo"
+            git -C "src/$dir" fetch -q --depth 1 origin "$commit"
+            git -C "src/$dir" checkout -q --detach FETCH_HEAD
+          }
+          clone mesa-main https://gitlab.freedesktop.org/mesa/mesa.git 35b085c4c067f198ce0b6437d94678e47b9c645f
+          clone mesa-gen8 https://github.com/whitebelyash/mesa-unified.git 9c7e022677dfa3abb356c2b6732cbd2e25783d01
+          ./scripts/check-matrix.sh
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bison flex pkg-config ccache
+          clang --version | head -1
+
+      - name: Build ${{ matrix.variant }}
+        run: ./build.sh ${{ matrix.variant }}
+
+      - name: Emit artifacts
+        run: |
+          sudo apt-get install -y -qq zip file
+          ./scripts/emit-slot-zip.sh ${{ matrix.variant }}
+          ./scripts/emit-runtime-fragment.sh ${{ matrix.variant }} /usr
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nixport-drivers-${{ matrix.variant }}
+          path: |
+            dist/turnip-*.zip
+            dist/fragment-*/**
+
+      - name: Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/turnip-*.zip
