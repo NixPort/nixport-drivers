@@ -43,9 +43,12 @@ GPL-3.0 来源（如 Droid-Deck/Drivers）不收编。
 
 ## 待办
 
+- CI dry-run 与 release：待建 GitHub 远端后触发（5.3 / 6.1）
+- 真机导入验证与 JICA98 `gen8-v5` A/B：待设备（6.2 / 6.3，依赖 `gpu-driver-slots` 完成或手动放置目录）
 - watcher CI（追上游 commit，按需另加）
 - release 版变体位（26.x / 25.x，pins 表已留扩展位）
 - fexdroid 内置驱动消费切换（归 fexdroid 侧后续 change）
+- nixport 消费本仓库产物时的光标渲染 rebase（0007 gow 变体无光标合成，见 series.yaml）
 - gen8 变体退休判据：mesa main 在 A840 真机验证通过后退役
 
 ## 构建记录
@@ -54,4 +57,6 @@ GPL-3.0 来源（如 Droid-Deck/Drivers）不收编。
   - `gen8`: Mesa `9c7e022` + 9 patches → `libvulkan_freedreno_gen8.so` (15.5 MB)，全部门禁通过，约 40 s
   - `main`: Mesa `35b085c` + 5 patches → `libvulkan_freedreno.so` (15.3 MB)，全部门禁通过，约 40 s
   - 产物: `turnip-gen8-9c7e022-20261028.zip` / `turnip-main-35b085c-20261028.zip`
-  - 真机（Adreno 840）验证: 待做（见 README 待办）
+  - 可复现性: 删除检出与产物后从零重建通过（1:28）；产物哈希逐次不同
+    （构建路径/时间戳嵌入），spec 口径为功能等价
+  - 真机（Adreno 840）验证: 待做（见待办）
