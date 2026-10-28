@@ -39,15 +39,16 @@ jobs:
       - name: Install build deps
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq bison flex pkg-config ccache
+          sudo apt-get install -y -qq bison flex pkg-config ccache clang lld llvm zip file
           clang --version | head -1
+          llvm-ar --version | head -1
+          ld.lld --version | head -1
 
       - name: Build ${{ matrix.variant }}
         run: ./build.sh ${{ matrix.variant }}
 
       - name: Emit artifacts
         run: |
-          sudo apt-get install -y -qq zip file
           ./scripts/emit-slot-zip.sh ${{ matrix.variant }}
           ./scripts/emit-runtime-fragment.sh ${{ matrix.variant }} /usr
 
