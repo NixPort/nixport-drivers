@@ -30,7 +30,8 @@ scripts/emit-slot-zip.sh main
 scripts/emit-runtime-fragment.sh main /data/data/.../files/rootfs
 ```
 
-依赖：clang/llvm（含 lld、llvm-ar、llvm-strip）、meson + ninja（自动建
+依赖：clang/llvm（含 lld、llvm-ar、llvm-strip）、glslang（Linux 包名
+`glslang-tools`；gen8 fork 的 meson 硬性要求）、meson + ninja（自动建
 venv）、bison >= 3.8、flex、python3、pkg-config、可选 ccache。sysroot 由
 `tools/fetch_arm64_sysroot.py` 自动拉取（Debian trixie arm64）。
 

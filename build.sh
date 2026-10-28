@@ -17,8 +17,8 @@ for tool in bison flex; do
   done
 done
 [[ -n ${LLVM_PREFIX:-} && -d $LLVM_PREFIX/bin ]] && export PATH="$LLVM_PREFIX/bin:$PATH"
-for tool in clang clang++ llvm-ar llvm-strip pkg-config python3; do
-  command -v "$tool" >/dev/null || die "$tool is required"
+for tool in clang clang++ llvm-ar llvm-strip pkg-config python3 glslangValidator; do
+  command -v "$tool" >/dev/null || die "$tool is required (Linux: apt install glslang-tools llvm lld clang; macOS: brew install llvm glslang)"
 done
 if command -v readelf >/dev/null; then readelf_cmd=readelf; elif command -v llvm-readelf >/dev/null; then readelf_cmd=llvm-readelf; else die 'readelf or llvm-readelf is required'; fi
 if ! bison -Wcounterexamples -V >/dev/null 2>&1; then

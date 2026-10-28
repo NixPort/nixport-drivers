@@ -39,7 +39,7 @@ jobs:
       - name: Install build deps
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq bison flex pkg-config ccache clang lld llvm zip file
+          sudo apt-get install -y -qq bison flex pkg-config ccache clang lld llvm glslang-tools zip file
           clang --version | head -1
           llvm-ar --version | head -1
           ld.lld --version | head -1
