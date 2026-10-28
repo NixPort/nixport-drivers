@@ -4,6 +4,12 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      variants:
+        description: '只构建部分变体 (留空 = 全部)'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: write
@@ -14,6 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         variant: [main, gen8]
+    if: github.event_name != 'workflow_dispatch' || inputs.variants == '' || contains(split(inputs.variants, ' '), matrix.variant)
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
@@ -73,6 +80,21 @@ jobs:
 
       - name: Release notes
         run: ./scripts/emit-release-notes.sh
+
+      - name: ci 滚动发布清理 (仅本次构建的变体, 正式 tag 不受影响)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          variants=${{ inputs.variants != '' && inputs.variants || 'main gen8' }}
+          for v in $variants; do
+            ids=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/ci" \
+              --jq ".assets[] | select(.name | startswith(\"turnip-$v-\")) | .id" 2>/dev/null || true)
+            for id in $ids; do
+              gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$id"
+              echo "deleted ci asset $id ($v)"
+            done
+          done
 
       - name: Release (tag = 正式, dispatch = 滚动 ci prerelease)
         uses: softprops/action-gh-release@v2
