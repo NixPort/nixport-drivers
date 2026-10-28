@@ -20,7 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         variant: [main, gen8]
-    if: github.event_name != 'workflow_dispatch' || inputs.variants == '' || contains(split(inputs.variants, ' '), matrix.variant)
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.variants == '' || contains(split(github.event.inputs.variants, ' '), matrix.variant)
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
@@ -86,7 +86,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          variants=${{ inputs.variants != '' && inputs.variants || 'main gen8' }}
+          variants=${{ github.event.inputs.variants != '' && github.event.inputs.variants || 'main gen8' }}
           for v in $variants; do
             ids=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/ci" \
               --jq ".assets[] | select(.name | startswith(\"turnip-$v-\")) | .id" 2>/dev/null || true)
