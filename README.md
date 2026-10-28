@@ -1,9 +1,6 @@
 # nixport-drivers
 
-glibc Turnip（Mesa freedreno Vulkan，KGSL 后端）驱动构建与发布仓库，
-为 [fexdroid/Nixport](https://github.com/cobrabm12/fexdroid) 的多槽驱动导入
-（`gpu-driver-slots`）与同 rootfs 的 glibc 运行时（如 gow_android_glibc）
-持续供货。驱动产物生命周期独立于 Runtime/rootfs。
+glibc Turnip（Mesa freedreno Vulkan，KGSL 后端）驱动构建与发布仓库
 
 ## 变体
 
