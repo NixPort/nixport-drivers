@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       variants:
-        description: '只构建部分变体 (留空 = 全部)'
+        description: '只构建部分变体 (留空 = 全部, 如: gen8)'
         required: false
         default: ''
         type: string
@@ -20,15 +20,26 @@ jobs:
       fail-fast: false
       matrix:
         variant: [main, gen8]
-    if: github.event_name != 'workflow_dispatch' || github.event.inputs.variants == '' || contains(split(github.event.inputs.variants, ' '), matrix.variant)
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
 
+      - name: Variant filter
+        id: filter
+        run: |
+          variants="${{ github.event.inputs.variants }}"
+          if [[ -z $variants || " $variants " == *" ${{ matrix.variant }} "* ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: License gate
+        if: steps.filter.outputs.run == 'true'
         run: python3 scripts/check-license.py
 
       - name: Patch matrix (dry replay on pinned baselines)
+        if: steps.filter.outputs.run == 'true'
         run: |
           git config --global advice.detachedHead false
           mkdir -p src
@@ -44,6 +55,7 @@ jobs:
           ./scripts/check-matrix.sh
 
       - name: Install build deps
+        if: steps.filter.outputs.run == 'true'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq bison flex pkg-config ccache clang lld llvm glslang-tools zip file
@@ -52,14 +64,17 @@ jobs:
           ld.lld --version | head -1
 
       - name: Build ${{ matrix.variant }}
+        if: steps.filter.outputs.run == 'true'
         run: ./build.sh ${{ matrix.variant }}
 
       - name: Emit artifacts
+        if: steps.filter.outputs.run == 'true'
         run: |
           ./scripts/emit-slot-zip.sh ${{ matrix.variant }}
           ./scripts/emit-runtime-fragment.sh ${{ matrix.variant }} /usr
 
       - uses: actions/upload-artifact@v4
+        if: steps.filter.outputs.run == 'true'
         with:
           name: nixport-drivers-${{ matrix.variant }}
           path: |
@@ -86,7 +101,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          variants=${{ github.event.inputs.variants != '' && github.event.inputs.variants || 'main gen8' }}
+          variants="${{ github.event.inputs.variants }}"
+          [[ -z $variants ]] && variants='main gen8'
           for v in $variants; do
             ids=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/ci" \
               --jq ".assets[] | select(.name | startswith(\"turnip-$v-\")) | .id" 2>/dev/null || true)
