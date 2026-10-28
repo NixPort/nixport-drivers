@@ -1,0 +1,68 @@
+# nixport-drivers 补丁清单 (唯一真本)
+# 字段: file / variants (main|gen8) / layer / license / origin / notes
+# 重放顺序 = 本清单顺序, 按 layer 分组后自上而下; 变体先过 L0 (仅 gen8)。
+# 许可门禁: 本清单出现 GPL 条目即 CI fail (scripts/check-license.py)。
+# 注: fexdroid 26.2.3 内置驱动的专属补丁 (0002 double-close / 0003 dma_fd leak /
+#     0004 32B rollover / 0008 zero-timeout polls / 0007 原版含光标合成) 不在本仓库——
+#     它们只适用于 Mesa 26.2.3, main@35b085c4 已含对应上游修复, 留在 fexdroid 仓库维护。
+
+patches:
+  # ---- L0: 上游 backport (仅 gen8; whitebelyash fork 早于这些上游修复) ----
+  - file: L0-backport/gen8/0001-tu-kgsl-Prevent-overflow-in-kgsl-queue-wait-fence.patch
+    variants: [gen8]
+    layer: L0
+    license: MIT
+    origin: gow_android_glibc mesa-patches/gen8 (upstream b889ab52)
+  - file: L0-backport/gen8/0002-tu-kgsl-Distinguish-timestamp-and-sync-wait-errors.patch
+    variants: [gen8]
+    layer: L0
+    license: MIT
+    origin: gow_android_glibc mesa-patches/gen8 (upstream b7ad24ad)
+  - file: L0-backport/gen8/0003-tu-kgsl-Prevent-indefinite-wait-times-for-0-timeout-waits.patch
+    variants: [gen8]
+    layer: L0
+    license: MIT
+    origin: gow_android_glibc mesa-patches/gen8 (upstream e984ef29)
+  - file: L0-backport/gen8/0004-tu-kgsl-Always-round-up-the-wait-timeout.patch
+    variants: [gen8]
+    layer: L0
+    license: MIT
+    origin: gow_android_glibc mesa-patches/gen8 (upstream 6cb65e61)
+
+  # ---- L1: 设备表 (纯数据, 双变体) ----
+  - file: L1-devicetable/0001-freedreno-a840-kgsl-patchid-wildcard.patch
+    variants: [main, gen8]
+    layer: L1
+    license: MIT
+    origin: fexdroid patches/mesa (原创; gow 内为同一文件的拷贝)
+    notes: A840 KGSL patch-id 通配兜底; fexdroid 26.2.3 与本仓库双 pin 均适用
+
+  # ---- L2: KGSL 修复/防护 (双变体) ----
+  - file: L2-kgsl/0008-tu-reject-end-rendering-without-state.patch
+    variants: [main, gen8]
+    layer: L2
+    license: MIT
+    origin: gow_android_glibc mesa-patches (SpartanPort 原创; fexdroid 侧同文件在
+      patches/mesa/dormant/ 备用——fexdroid 因 host 侧护栏已真机验证足够而未启用;
+      分发产物带上属于纯防护, host 护栏正常时无副作用)
+
+  # ---- L3: FEXDROID/项目集成 (双变体) ----
+  - file: L3-fexdroid/0005-wsi-x11-sw-wait-for-the-gpu-on-the-present-thread.patch
+    variants: [main, gen8]
+    layer: L3
+    license: MIT
+    origin: fexdroid patches/mesa (原创; 与 gow 拷贝逐字节一致)
+  - file: L3-fexdroid/0006-tu-kgsl-power-constraint-from-the-environment.patch
+    variants: [main, gen8]
+    layer: L3
+    license: MIT
+    origin: fexdroid patches/mesa (原创; 与 gow 拷贝逐字节一致)
+  - file: L3-fexdroid/0007-wsi-x11-sw-frames-straight-to-the-app.patch
+    variants: [main, gen8]
+    layer: L3
+    license: MIT
+    origin: gow_android_glibc mesa-patches (fexdroid 原创的变体:
+      删除光标取图与逐帧合成, 适配 -nocursor 虚拟显示器)
+    notes: fexdroid 原版仅适用于 26.2.3 (本仓库双 pin 上 context 不匹配);
+      后果——本仓库产物的软件呈现路径不含驱动侧光标合成, nixport 未来消费
+      本仓库产物时若需要光标渲染, 需先做 rebase (记 README 待办)

@@ -1,0 +1,19 @@
+# nixport-drivers 变体钉版表
+# 字段: repo (上游仓库) / ref (分支或 tag) / commit (钉定基线) / layers (重放的补丁层, 按序) / compat (适用 GPU)
+
+variants:
+  main:
+    repo: https://gitlab.freedesktop.org/mesa/mesa.git
+    ref: main
+    commit: 35b085c4c067f198ce0b6437d94678e47b9c645f
+    layers: [L1-devicetable, L2-kgsl, L3-fexdroid]
+    compat: "a6xx/a7xx/a8xx"
+
+  gen8:
+    repo: https://github.com/whitebelyash/mesa-unified.git
+    ref: turnip/gen8
+    commit: 9c7e022677dfa3abb356c2b6732cbd2e25783d01
+    layers: [L0-backport-gen8, L1-devicetable, L2-kgsl, L3-fexdroid]
+    compat: "a8xx"
+
+# 扩展位: 未来可加 release 版变体 (26.x/25.x tarball), 字段改用 tarball + sha256

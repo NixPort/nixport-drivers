@@ -1,0 +1,7 @@
+dist/
+build/
+mesa-sysroot/
+mesa-venv/
+src/
+*.log
+.DS_Store
