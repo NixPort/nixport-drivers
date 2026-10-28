@@ -184,5 +184,6 @@ grep -q "Adreno (TM) 840" "$out/$library" \
 if "$readelf_cmd" -d "$out/$library" | grep -q keysyms; then
   die "$library needs libxcb-keysyms, which the consumers' rootfs lacks"
 fi
+cp "$src/VERSION" "$out/mesa_version"
 
-echo "Turnip $variant: $out (Mesa $(git -C "$src" rev-parse --short HEAD) + ${#PATCHES[@]} patches)"
+echo "Turnip $variant: $out (Mesa $(cat "$out/mesa_version") $(git -C "$src" rev-parse --short HEAD) + ${#PATCHES[@]} patches)"

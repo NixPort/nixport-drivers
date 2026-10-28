@@ -14,10 +14,20 @@ glibc Turnip（Mesa freedreno Vulkan，KGSL 后端）驱动构建与发布仓库
 
 钉版细节见 `pins.yaml`；补丁分层与许可血统见 `patches/series.yaml`。
 
+## 版本机制
+
+- **驱动身份** = Mesa `VERSION`（如 `26.3.0-devel`）+ 基线 commit——写入
+  每个 zip 的 `meta.json` 与 release 说明，跨生态可比；
+- **发布序号** = tag `vX.Y.Z`：X = 产物格式/兼容破坏；Y = 基线或补丁集
+  变更；Z = 重打包/门禁修复。正式 release 仅由 tag push 产生；
+- **滚动预发布** = tag `ci`（prerelease）：每次手动 dispatch 触发的构建
+  覆盖更新，不占用正式版本号。
+
 ## 产物
 
-- **槽位导入 zip**：`turnip-<variant>-<mesa_rev>-<YYYYMMDD>.zip`
+- **槽位导入 zip**：`turnip-<variant>-<gpu>-<mesa_rev>-<YYYYMMDD>.zip`
   （`libvulkan_freedreno*.so` + `meta.json`），nixport 驱动管理直接导入；
+  release 说明标注各变体适配的 Adreno 型号范围；
 - **runtime fragment**：`usr/lib/aarch64-linux-gnu/` +
   `usr/share/vulkan/icd.d/` 布局，icd `library_path` 前缀按消费方 rootfs
   传入，可并入任意 trixie arm64 glibc rootfs。
