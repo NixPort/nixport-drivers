@@ -1,0 +1,135 @@
+name: build
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      variants:
+        description: '只构建部分变体 (留空 = 全部, 如: gen8)'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [main, gen8]
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Variant filter
+        id: filter
+        run: |
+          variants="${{ github.event.inputs.variants }}"
+          if [[ -z $variants || " $variants " == *" ${{ matrix.variant }} "* ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: License gate
+        if: steps.filter.outputs.run == 'true'
+        run: python3 scripts/check-license.py
+
+      - name: Patch matrix (dry replay on pinned baselines)
+        if: steps.filter.outputs.run == 'true'
+        run: |
+          git config --global advice.detachedHead false
+          mkdir -p src
+          clone() {
+            local dir=$1 repo=$2 commit=$3
+            git init -q "src/$dir"
+            git -C "src/$dir" remote add origin "$repo"
+            git -C "src/$dir" fetch -q --depth 1 origin "$commit"
+            git -C "src/$dir" checkout -q --detach FETCH_HEAD
+          }
+          clone mesa-main https://gitlab.freedesktop.org/mesa/mesa.git 35b085c4c067f198ce0b6437d94678e47b9c645f
+          clone mesa-gen8 https://github.com/whitebelyash/mesa-unified.git 9c7e022677dfa3abb356c2b6732cbd2e25783d01
+          ./scripts/check-matrix.sh
+
+      - name: Install build deps
+        if: steps.filter.outputs.run == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bison flex pkg-config ccache clang lld llvm glslang-tools zip file
+          clang --version | head -1
+          llvm-ar --version | head -1
+          ld.lld --version | head -1
+
+      - name: Build ${{ matrix.variant }}
+        if: steps.filter.outputs.run == 'true'
+        run: ./build.sh ${{ matrix.variant }}
+
+      - name: Emit artifacts
+        if: steps.filter.outputs.run == 'true'
+        run: |
+          ./scripts/emit-slot-zip.sh ${{ matrix.variant }}
+          ./scripts/emit-runtime-fragment.sh ${{ matrix.variant }} /usr
+          # runtime fragment 打包成 tar.gz 上传 release（README 承诺的交付物，
+          # 之前只产目录没上传——消费方 nixport-rootfs 的 assemble-payload 需要它）。
+          # Package the runtime fragment as tar.gz for the release (README promises
+          # it; consumers merge it into trixie arm64 glibc rootfs).
+          tar -C dist/fragment-${{ matrix.variant }} \
+            --numeric-owner --owner=0 --group=0 -czf \
+            dist/fragment-${{ matrix.variant }}.tar.gz .
+          sha256sum dist/fragment-${{ matrix.variant }}.tar.gz \
+            > dist/fragment-${{ matrix.variant }}.tar.gz.sha256
+
+      - uses: actions/upload-artifact@v4
+        if: steps.filter.outputs.run == 'true'
+        with:
+          name: nixport-drivers-${{ matrix.variant }}
+          path: |
+            dist/turnip-*.zip
+            dist/fragment-*/
+            dist/*/meta.json
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Release notes
+        run: ./scripts/emit-release-notes.sh
+
+      - name: ci 滚动发布清理 (仅本次构建的变体, 正式 tag 不受影响)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          variants="${{ github.event.inputs.variants }}"
+          [[ -z $variants ]] && variants='main gen8'
+          for v in $variants; do
+            ids=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/ci" \
+              --jq ".assets[] | select(.name | startswith(\"turnip-$v-\")) | .id" 2>/dev/null || true)
+            for id in $ids; do
+              gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$id"
+              echo "deleted ci asset $id ($v)"
+            done
+          done
+
+      - name: Release (tag = 正式, dispatch = 滚动 ci prerelease)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'ci' }}
+          name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'CI builds (rolling)' }}
+          prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
+          body_path: dist/release-notes.md
+          files: |
+            dist/turnip-*.zip
+            dist/fragment-*.tar.gz
+            dist/fragment-*.tar.gz.sha256
+          make_latest: ${{ !startsWith(github.ref, 'refs/tags/') && 'false' || 'true' }}
