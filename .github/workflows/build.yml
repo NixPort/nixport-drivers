@@ -96,6 +96,8 @@ jobs:
           path: |
             dist/turnip-*.zip
             dist/fragment-*/
+            dist/fragment-*.tar.gz
+            dist/fragment-*.tar.gz.sha256
             dist/*/meta.json
 
   release:
